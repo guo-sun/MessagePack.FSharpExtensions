@@ -7,15 +7,13 @@ namespace MessagePack.FSharp.Formatters
     {
 
         public UnitFormatter() { }
-
-        public int Serialize(ref byte[] bytes, int offset, Unit value, IFormatterResolver formatterResolver)
-        {
-            return MessagePackBinary.WriteNil(ref bytes, offset);
+        public void Serialize(ref MessagePackWriter writer, Unit value, MessagePackSerializerOptions options) {
+            writer.WriteNil();
         }
 
-        public Unit Deserialize(byte[] bytes, int offset, IFormatterResolver formatterResolver, out int readSize)
-        {
-            MessagePackBinary.ReadNil(bytes, offset, out readSize);
+        public Unit Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options) {
+            reader.ReadNil();
+
             return null;
         }
     }
