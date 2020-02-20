@@ -1,5 +1,6 @@
 module MessagePack.Tests.StructDUTest
 
+open System
 open Xunit
 open MessagePack
 
@@ -62,7 +63,11 @@ module Compatibility =
 
   let convert<'T, 'U> (value: 'T) =
     let resolver = WithFSharpDefaultResolver() :> IFormatterResolver
-    MessagePackSerializer.Deserialize<'U>(MessagePackSerializer.Serialize(value, resolver), resolver)
+    let options = MessagePackSerializerOptions.Standard.WithResolver(resolver)
+    
+    let bin = ReadOnlyMemory(MessagePackSerializer.Serialize(value, options))
+
+    MessagePackSerializer.Deserialize<'U>(bin, options)
 
   [<Union(0, typeof<CsE>)>]
   [<Union(1, typeof<CsF>)>]

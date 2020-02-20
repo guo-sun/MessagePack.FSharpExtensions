@@ -1,5 +1,6 @@
 ﻿module Program
 
+open System
 open System.Collections.Immutable
 open MessagePack
 open MessagePack.Resolvers
@@ -45,12 +46,12 @@ module Benchmark =
     printfn ""
 
   let msgpack<'T> name (target: 'T) =
-    impl<'T> (fun x -> MessagePackSerializer.Serialize(x)) (fun x -> MessagePackSerializer.Deserialize<'T>(x)) name target
+    impl<'T> (fun x -> MessagePackSerializer.Serialize(x)) (fun x -> MessagePackSerializer.Deserialize<'T>(ReadOnlyMemory(x))) name target
 
 [<EntryPoint>]
 let main _ =
 
-  CompositeResolver.RegisterAndSetAsDefault(
+  StaticCompositeResolver.Instance.Register(
     ImmutableCollectionResolver.Instance,
     FSharpResolver.Instance,
     StandardResolver.Instance
