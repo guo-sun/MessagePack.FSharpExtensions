@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Version>1.4.1</Version>
-    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <Authors>pocketberserker</Authors>
     <Owners>pocketberserker</Owners>
     <PackageProjectUrl>https://github.com/pocketberserker/MessagePack.FSharpExtensions</PackageProjectUrl>
@@ -9,8 +9,6 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Description>MessagePack extensions for F#</Description>
     <PackageTags>F#;fsharp;Msgpack;MessagePack;Serialization;Formatter;Serializer</PackageTags>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
     <DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
   </PropertyGroup>
   <ItemGroup>

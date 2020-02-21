@@ -29,10 +29,6 @@ using System.Threading;
 using MessagePack.Formatters;
 using MessagePack.Internal;
 using MessagePack.FSharp.Internal;
-#if !NETSTANDARD
-using Microsoft.FSharp.Core;
-using Microsoft.FSharp.Reflection;
-#endif
 
 namespace MessagePack.FSharp
 {
@@ -313,7 +309,6 @@ namespace MessagePack.FSharp
                     il.Emit(OpCodes.Call, ReadOnlySpanFromByteArray);
 
                     // Optimize, WriteRaw(Unity, large) or UnsafeMemory32/64.WriteRawX
-#if NETSTANDARD 
                     var valueLen = MessagePack.Internal.CodeGenHelpers.GetEncodedStringBytes(item.StringKey).Length;
                     if (valueLen <= MessagePackRange.MaxFixStringLength)
                     {
@@ -327,7 +322,6 @@ namespace MessagePack.FSharp
                         }
                     }
                     else
-#endif
                     {
                         il.EmitCall(MessagePackWriterTypeInfo.WriteRaw);
                     }

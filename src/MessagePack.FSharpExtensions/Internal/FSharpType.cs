@@ -4,7 +4,6 @@ using Microsoft.FSharp.Reflection;
 
 namespace MessagePack.FSharp.Internal
 {
-#if NETSTANDARD
     internal static class FSharpType
     {
         private static readonly TypeInfo extensions = typeof(FSharpReflectionExtensions).GetTypeInfo();
@@ -21,5 +20,4 @@ namespace MessagePack.FSharp.Internal
             return (UnionCaseInfo[])getUnionCases.Invoke(null, new object[] { type, fake });
         }
     }
-#endif
 }

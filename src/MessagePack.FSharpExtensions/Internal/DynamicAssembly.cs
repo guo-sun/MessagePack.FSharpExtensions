@@ -33,11 +33,7 @@ namespace MessagePack.FSharp.Internal
         public DynamicAssembly(string moduleName)
         {
 
-#if NETSTANDARD
             this.assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(moduleName), AssemblyBuilderAccess.Run);
-#else
-            this.assemblyBuilder = System.AppDomain.CurrentDomain.DefineDynamicAssembly(new AssemblyName(moduleName), AssemblyBuilderAccess.Run);
-#endif
 
             this.moduleBuilder = assemblyBuilder.DefineDynamicModule(moduleName);
         }
