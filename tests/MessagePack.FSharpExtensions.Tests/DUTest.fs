@@ -46,94 +46,94 @@ type DUTest(output: ITestOutputHelper) =
         Assert.Equal(input, actual)
 
 
-    (* [<Fact>] *)
-    (* member __.``string key`` () = *)
+    [<Fact>]
+    member __.``string key`` () =
 
-    (*     let input = D 1 *)
-    (*     let actual = convert input *)
-    (*     Assert.Equal(input, actual) *)
+        let input = D 1
+        let actual = convert input
+        Assert.Equal(input, actual)
 
 
-    (* [<Fact>] *)
-    (* member __.``receive callback`` () = *)
-    (*     let input = Call *)
-    (*     let actual = convert input *)
-    (*     Assert.True(beforeCallback) *)
-    (*     Assert.True(afterCallback) *)
+    [<Fact>]
+    member __.``receive callback`` () =
+        let input = Call
+        let actual = convert input
+        Assert.True(beforeCallback)
+        Assert.True(afterCallback)
 
-(* module Compatibility = *)
+module Compatibility =
 
-    (* open MessagePack.Resolvers *)
-    (* open MessagePack.FSharp *)
+    open MessagePack.Resolvers
+    open MessagePack.FSharp
 
-    (* let convert<'T, 'U> (value: 'T) = *)
-    (*     let resolver = WithFSharpDefaultResolver() :> IFormatterResolver *)
-    (*     let options = MessagePackSerializerOptions.Standard.WithResolver(resolver) *)
+    let convert<'T, 'U> (value: 'T) =
+        let resolver = WithFSharpDefaultResolver() :> IFormatterResolver
+        let options = MessagePackSerializerOptions.Standard.WithResolver(resolver)
         
-    (*     let bin = ReadOnlyMemory(MessagePackSerializer.Serialize(value, options)) *)
+        let bin = ReadOnlyMemory(MessagePackSerializer.Serialize(value, options))
 
-    (*     MessagePackSerializer.Deserialize<'U>(bin, options) *)
+        MessagePackSerializer.Deserialize<'U>(bin, options)
 
-    (* [<Union(0, typeof<CsA>)>] *)
-    (* [<Union(1, typeof<CsB>)>] *)
-    (* [<Union(2, typeof<CsC>)>] *)
-    (* type CsSimpleUnion = interface end *)
+    [<Union(0, typeof<CsA>)>]
+    [<Union(1, typeof<CsB>)>]
+    [<Union(2, typeof<CsC>)>]
+    type CsSimpleUnion = interface end
 
-    (* and [<MessagePackObject>]CsA() = *)
-    (*     interface CsSimpleUnion *)
+    and [<MessagePackObject>]CsA() =
+        interface CsSimpleUnion
 
-    (* and [<MessagePackObject>]CsB() = *)
+    and [<MessagePackObject>]CsB() =
 
-    (*     [<Key(0)>] *)
-    (*     member val Item: int = 0 with get, set *)
+        [<Key(0)>]
+        member val Item: int = 0 with get, set
 
-    (*     interface CsSimpleUnion *)
+        interface CsSimpleUnion
 
-    (* and [<MessagePackObject>]CsC() = *)
+    and [<MessagePackObject>]CsC() =
 
-    (*     [<Key(0)>] *)
-    (*     member val Item1: int64 = 0L with get, set *)
+        [<Key(0)>]
+        member val Item1: int64 = 0L with get, set
 
-    (*     [<Key(1)>] *)
-    (*     member val Item2: float32 = 0.0f with get, set *)
+        [<Key(1)>]
+        member val Item2: float32 = 0.0f with get, set
 
-    (*     interface CsSimpleUnion *)
+        interface CsSimpleUnion
 
-    (* [<Fact>] *)
-    (* let simple () = *)
+    [<Fact>]
+    let simple () =
 
-    (*     let input = A *)
-    (*     let actual = convert<SimpleUnion, CsSimpleUnion> input |> box *)
-    (*     Assert.True(actual :? CsA) *)
+        let input = A
+        let actual = convert<SimpleUnion, CsSimpleUnion> input |> box
+        Assert.True(actual :? CsA)
 
-    (*     let input = B 100 *)
-    (*     match convert<SimpleUnion, CsSimpleUnion> input |> box with *)
-    (*     | :? CsB as actual -> *)
-    (*         Assert.Equal(100, actual.Item) *)
-    (*     | actual -> Assert.True(false, sprintf "expected: CsB, but was: %A" actual) *)
+        let input = B 100
+        match convert<SimpleUnion, CsSimpleUnion> input |> box with
+        | :? CsB as actual ->
+            Assert.Equal(100, actual.Item)
+        | actual -> Assert.True(false, sprintf "expected: CsB, but was: %A" actual)
 
-    (*     let input = C(99999999L, -123.43f) *)
-    (*     match convert<SimpleUnion, CsSimpleUnion> input  |> box with *)
-    (*     | :? CsC as actual -> *)
-    (*         Assert.Equal(99999999L, actual.Item1) *)
-    (*         Assert.Equal(-123.43f, actual.Item2) *)
-    (*     | actual -> Assert.True(false, sprintf "expected: CsC, but was: %A" actual) *)
+        let input = C(99999999L, -123.43f)
+        match convert<SimpleUnion, CsSimpleUnion> input  |> box with
+        | :? CsC as actual ->
+            Assert.Equal(99999999L, actual.Item1)
+            Assert.Equal(-123.43f, actual.Item2)
+        | actual -> Assert.True(false, sprintf "expected: CsC, but was: %A" actual)
 
-    (* [<Union(0, typeof<CsD>)>] *)
-    (* type CsStringKeyUnion = interface end *)
+    [<Union(0, typeof<CsD>)>]
+    type CsStringKeyUnion = interface end
 
-    (* and [<MessagePackObject>]CsD() = *)
+    and [<MessagePackObject>]CsD() =
 
-    (*     [<Key("Prop")>] *)
-    (*     member val Prop: int = 0 with get, set *)
+        [<Key("Prop")>]
+        member val Prop: int = 0 with get, set
 
-    (*     interface CsStringKeyUnion *)
+        interface CsStringKeyUnion
 
-    (* [<Fact>] *)
-    (* let ``string key`` () = *)
+    [<Fact>]
+    let ``string key`` () =
 
-    (*     let input = D 100 *)
-    (*     match convert<StringKeyUnion, CsStringKeyUnion> input  |> box with *)
-    (*     | :? CsD as actual -> *)
-    (*         Assert.Equal(100, actual.Prop) *)
-    (*     | actual -> Assert.True(false, sprintf "expected: CsD, but was: %A" actual) *)
+        let input = D 100
+        match convert<StringKeyUnion, CsStringKeyUnion> input  |> box with
+        | :? CsD as actual ->
+            Assert.Equal(100, actual.Prop)
+        | actual -> Assert.True(false, sprintf "expected: CsD, but was: %A" actual)
