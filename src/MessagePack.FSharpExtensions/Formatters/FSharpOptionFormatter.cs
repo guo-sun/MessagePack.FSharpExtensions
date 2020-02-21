@@ -5,16 +5,22 @@ namespace MessagePack.FSharp.Formatters
 {
     public sealed class FSharpOptionFormatter<T> : IMessagePackFormatter<FSharpOption<T>>
     {
-        public void Serialize(ref MessagePackWriter writer, FSharpOption<T> value, MessagePackSerializerOptions options) {
-            if (FSharpOption<T>.get_IsNone(value)) {
+        public void Serialize(ref MessagePackWriter writer, FSharpOption<T> value, MessagePackSerializerOptions options)
+        {
+            if (FSharpOption<T>.get_IsNone(value))
+            {
                 writer.WriteNil();
-            } else {
+            }
+            else
+            {
                 options.Resolver.GetFormatterWithVerify<T>().Serialize(ref writer, value.Value, options);
             }
         }
 
-        public FSharpOption<T> Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options) {
-            if (!reader.TryReadNil()) {
+        public FSharpOption<T> Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
+        {
+            if (!reader.TryReadNil())
+            {
                 return FSharpOption<T>.Some(
                     options.Resolver.GetFormatterWithVerify<T>().Deserialize(ref reader, options)
                 );
@@ -33,16 +39,22 @@ namespace MessagePack.FSharp.Formatters
             this.underlyingFormatter = underlyingFormatter;
         }
 
-        public void Serialize(ref MessagePackWriter writer, FSharpOption<T> value, MessagePackSerializerOptions options) {
-            if (FSharpOption<T>.get_IsNone(value)) {
+        public void Serialize(ref MessagePackWriter writer, FSharpOption<T> value, MessagePackSerializerOptions options)
+        {
+            if (FSharpOption<T>.get_IsNone(value))
+            {
                 writer.WriteNil();
-            } else {
+            }
+            else
+            {
                 underlyingFormatter.Serialize(ref writer, value.Value, options);
             }
         }
 
-        public FSharpOption<T> Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options) {
-            if (!reader.TryReadNil()) {
+        public FSharpOption<T> Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
+        {
+            if (!reader.TryReadNil())
+            {
                 return FSharpOption<T>.Some(underlyingFormatter.Deserialize(ref reader, options));
             }
 
