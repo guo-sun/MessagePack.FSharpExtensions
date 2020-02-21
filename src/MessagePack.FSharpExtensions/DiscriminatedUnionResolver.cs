@@ -103,17 +103,29 @@ namespace MessagePack.FSharp
             }
 
             {
-                var method = typeBuilder.DefineMethod("Serialize", MethodAttributes.Public | MethodAttributes.Final | MethodAttributes.Virtual,
-                    typeof(int),
-                    new Type[] { typeof(MessagePackWriter).MakeByRefType(), typeof(int), type, typeof(MessagePackSerializerOptions) });
+                var method =
+                    typeBuilder.DefineMethod(
+                        "Serialize",
+                        MethodAttributes.Public | MethodAttributes.Final | MethodAttributes.Virtual,
+                        typeof(void),
+                        new Type[] {
+                            typeof(MessagePackWriter).MakeByRefType(),
+                            type,
+                            typeof(MessagePackSerializerOptions)
+                        });
 
                 var il = method.GetILGenerator();
                 BuildSerialize(type, unionCases, stringByteKeysFields, il);
             }
             {
-                var method = typeBuilder.DefineMethod("Deserialize", MethodAttributes.Public | MethodAttributes.Final | MethodAttributes.Virtual,
+                var method = typeBuilder.DefineMethod(
+                    "Deserialize",
+                    MethodAttributes.Public | MethodAttributes.Final | MethodAttributes.Virtual,
                     type,
-                    new Type[] { typeof(byte[]), typeof(int), typeof(IFormatterResolver), typeof(int).MakeByRefType() });
+                    new Type[] {
+                        typeof(MessagePackReader).MakeByRefType(),
+                        typeof(MessagePackSerializerOptions)
+                    });
 
                 var il = method.GetILGenerator();
                 BuildDeserialize(type, unionCases, method, stringByteKeysFields, il);
@@ -154,7 +166,7 @@ namespace MessagePack.FSharp
         }
 
 
-        // int Serialize([arg:1]ref byte[] bytes, [arg:2]int offset, [arg:3]T value, [arg:4]IFormatterResolver formatterResolver);
+        // // int Serialize([arg:1]ref byte[] bytes, [arg:2]int offset, [arg:3]T value, [arg:4]IFormatterResolver formatterResolver);
         // int Serialize([arg:1]ref MessagePackWriter, [arg:2]T value, [arg:3]MessagePackSerializerOptions options)
         static void BuildSerialize(Type type, Microsoft.FSharp.Reflection.UnionCaseInfo[] infos, FieldBuilder[] stringByteKeysFields, ILGenerator il)
         {
@@ -174,12 +186,6 @@ namespace MessagePack.FSharp
             il.Emit(OpCodes.Br, notFoundType);
 
             il.MarkLabel(elseBody);
-            /* 
-                writer.WriteArrayHeader(2); x
-                writer.WriteInt32(value.Tag); x
-                IFormatterResolver resolver = options.Resolver;
-                resolver.GetFormatter.Serialize()
-            */
 
             // writer.WriteArrayHeader(2)
             emitLoadWriter();
@@ -224,32 +230,17 @@ namespace MessagePack.FSharp
                 il.Emit(OpCodes.Br, loopEnd);
             }
 
-            /* void Serialize */
             il.MarkLabel(loopEnd);
             il.Emit(OpCodes.Ret);
 
-            // else, return WriteNil
+            // else, WriteNil
+            // return
             il.MarkLabel(notFoundType);
+
             emitLoadWriter();
             il.EmitCall(MessagePackWriterTypeInfo.WriteNil);
             il.Emit(OpCodes.Ret);
         }
-
-        // offset += ***(ref bytes, offset....
-        // static void EmitOffsetPlusEqual(ILGenerator il, Action loadEmit, Action emit)
-        // {
-        //     il.EmitLdarg(2);
-
-        //     if (loadEmit != null) loadEmit();
-
-        //     il.EmitLdarg(1);
-        //     il.EmitLdarg(2);
-
-        //     emit();
-
-        //     il.Emit(OpCodes.Add);
-        //     il.EmitStarg(2);
-        // }
 
         static void EmitSerializeUnionCase(ILGenerator il, Type type, TypeInfo ti, UnionSerializationInfo info, FieldBuilder stringByteKeysField, Action emitLoadWriter, Action emitLoadValue, Action emitLoadOptions, LocalBuilder localResolver)
         {
@@ -404,13 +395,13 @@ namespace MessagePack.FSharp
             il.MarkLabel(endLabel);
         }
 
+        // // T Deserialize([arg:1]byte[] bytes, [arg:2]int offset, [arg:3]IFormatterResolver formatterResolver, [arg:4]out int readSize);
         // T Deserialize([arg:1]ref MessagePackReader reader, [arg:2]MessagePackSerializerOptions options);
-        // T Deserialize([arg:1]byte[] bytes, [arg:2]int offset, [arg:3]IFormatterResolver formatterResolver, [arg:4]out int readSize);
         static void BuildDeserialize(Type type, Microsoft.FSharp.Reflection.UnionCaseInfo[] infos, MethodBuilder method, FieldBuilder[] stringByteKeysFields, ILGenerator il)
         {
             var ti = type.GetTypeInfo();
 
-            Action emitLoadReader = () => il.EmitLdarga(1); // TODO should this be Ldarga?
+            Action emitLoadReader = () => il.EmitLdarg(1); // TODO should this be Ldarga?
             Action emitLoadOptions = () => il.EmitLdarg(2);
 
             var falseLabel = il.DefineLabel();
@@ -439,6 +430,7 @@ namespace MessagePack.FSharp
             il.EmitCall(getSecurityFromOptions);
             emitLoadReader();
             il.EmitCall(securityDepthStep);
+
 
             // IFormatterResolver resolver = options.Resolver;
             LocalBuilder localResolver = il.DeclareLocal(typeof(IFormatterResolver));
@@ -497,8 +489,6 @@ namespace MessagePack.FSharp
 
             il.MarkLabel(loopEnd);
 
-            il.Emit(OpCodes.Sub);
-            il.Emit(OpCodes.Stind_I4);
             il.Emit(OpCodes.Ldloc, result);
             il.Emit(OpCodes.Ret);
         }
