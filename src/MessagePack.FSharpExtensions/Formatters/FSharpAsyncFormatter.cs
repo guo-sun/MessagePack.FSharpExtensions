@@ -14,7 +14,7 @@ namespace MessagePack.FSharp.Formatters
             } else {
                 var v = FSharpAsync.RunSynchronously(value, null, null);
 
-                options.Resolver.GetFormatterWithVerify<FSharpAsync<T>>().Serialize(ref writer, value, options);
+                options.Resolver.GetFormatterWithVerify<T>().Serialize(ref writer, v, options);
             }
         }
 
