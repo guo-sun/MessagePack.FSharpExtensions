@@ -198,3 +198,6 @@ temp/
 .vs/
 
 .idea/
+ILSpy*
+*.ionide*
+*.vscode*
