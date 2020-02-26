@@ -9,6 +9,7 @@
 // write it out with Assembly.save
 
 open System
+open System.Collections.Generic
 open System.Reflection
 open System.Reflection.Emit
 
@@ -30,27 +31,34 @@ open MessagePack.FSharp
 open MessagePack.Tests.DUTest
 
 module TypesReference =
-    type FSharpGeneratedFormatter<'T>() =
-        static member Formatter : Formatters.IMessagePackFormatter<'T> = null
-    
     type MessagePack_Tests_DUTest_SimpleUnionFormatter() =
         interface Formatters.IMessagePackFormatter<SimpleUnion> with
             member x.Serialize (writer, value, options) = ()
             member x.Deserialize (reader, options) = SimpleUnion.A
 
-    type FSharpGeneratedFormatter'1SimpleUnion () =
+    type FSharpGeneratedFormatter<'T>() =
+        static member Formatter : Formatters.IMessagePackFormatter<'T> = null
+
+    type SimpleUnionFormatterCache() =
+        inherit FSharpGeneratedFormatter<SimpleUnion>()
         static member Formatter = MessagePack_Tests_DUTest_SimpleUnionFormatter()
+
+    let simpleUnionFormatter = FSharpGeneratedFormatter<SimpleUnion>.Formatter
+
+    // type FSharpGeneratedFormatter'1SimpleUnion () =
+    //     static member Formatter = MessagePack_Tests_DUTest_SimpleUnionFormatter()
 
     type FSharpGeneratedResolver() =
         static member Instance = FSharpGeneratedResolver()
+        static member formatterCache : IDictionary<Type, Object> = dict []
         interface IFormatterResolver with
-            member __.GetFormatter<'T> () =
-                let formatter = FSharpGeneratedFormatter<'T>.Formatter
+            member x.GetFormatter<'T> () =
+                // let formatter = FSharpGeneratedFormatter<'T>.Formatter
+                // FIXME how to build concrete type instance? or just create an instance of the generic? how to reference that instance?
 
-                if not (isNull formatter) then
-                    formatter
-                else
-                    null
+                match FSharpGeneratedResolver.formatterCache.TryGetValue typeof<'T> with
+                | true, formatter -> formatter :?> Formatters.IMessagePackFormatter<'T>
+                | _ -> null
 
     // type FSharpGeneratedResolver(formatters: (Type * Object) seq) =
     //     member x.ResolverMap = dict formatters
@@ -64,18 +72,20 @@ module TypesReference =
 [<AutoOpen>]
 module TypeGeneration =
     let CacheFormatterFieldName = "Formatter"
+    let GenericCacheTypeName = "FSharpGeneratedFormatterCache"
 
     let messagePackFormatterTyp = 
         let t = typeof<Formatters.IMessagePackFormatter<_>>
         t.GetGenericTypeDefinition()
 
     let createConcreteFormatterCacheType
-        (cacheGenericTyp: Type)
+        (cacheGenericTb: TypeBuilder)
         (formatterObj: Object)
         (serializationType: Type)
+        (formatterInstanceFi: FieldInfo)
         =
-        let concreteCache = cacheGenericTyp.MakeGenericType([|serializationType|])
-        let formatterField = concreteCache.GetField(CacheFormatterFieldName)
+        let concreteCache = cacheGenericTb.MakeGenericType([|serializationType|])
+        let formatterField = TypeBuilder.GetField(concreteCache, formatterInstanceFi)
         formatterField.SetValue (null, formatterObj) // formatter field is static so obj instance is ignored
 
         concreteCache
@@ -90,10 +100,43 @@ module TypeGeneration =
         il.Emit(OpCodes.Newobj, ctor)
         il.Emit(OpCodes.Stfld, formatterFb)
 
+    let createConcrete
+        (genericCache: Type)
+        (serializationTyp: Type)
+        (formatterTypCtor: ConstructorInfo)
+        (moduleBuilder: ModuleBuilder)
+        =
+        let tb =
+            moduleBuilder.DefineType(
+                GenericCacheTypeName,
+                TypeAttributes.Public,
+                genericCache)
+        let concreteTyp = genericCache.MakeGenericType(serializationTyp)
+        // let parentCtor = TypeBuilder.GetConstructor(concreteTyp, genericCache.GetConstructor(Type.EmptyTypes))
+        let ctorIL = 
+            let ctor =
+                tb.DefineConstructor (
+                    MethodAttributes.Public,
+                    CallingConventions.Standard,
+                    Type.EmptyTypes
+                )
+
+            ctor.GetILGenerator()
+
+        let formatterInstanceField = tb.GetField(CacheFormatterFieldName)
+
+        // store formatter in field
+        ctorIL.Emit(OpCodes.Ldarg_0)
+        ctorIL.Emit(OpCodes.Newobj, formatterTypCtor)
+        ctorIL.Emit(OpCodes.Stfld, formatterInstanceField)
+        ctorIL.Emit(OpCodes.Ret)
+
+        tb.CreateType()
+
     let createCacheGenericType (moduleBuilder: ModuleBuilder) =
         let tb =
             moduleBuilder.DefineType (
-                "FSharpGeneratedFormatter",
+                GenericCacheTypeName,
                 TypeAttributes.Public)
 
         let serializationType =
@@ -115,7 +158,7 @@ module TypeGeneration =
         ctorIL.Emit(OpCodes.Stfld, formatterInstanceFb)
         ctorIL.Emit(OpCodes.Ret)
 
-        tb.CreateType()
+        tb.CreateType(), tb, formatterInstanceFb
 
 
 module TestFromHere =
@@ -200,13 +243,20 @@ let main argv =
 
     let outAssembly = DiscriminatedUnionResolver.assembly
 
-    let cacheGenericTyp = createCacheGenericType outAssembly.ModuleBuilder
-    printfn "Made generic"
+    let (cacheGenericTyp, cacheGenericTb, instanceFi) = createCacheGenericType outAssembly.ModuleBuilder
+    printfn "Made generic on module: %A" cacheGenericTyp.Module
 
     for (serializationTyp, formatterObj) in formatters do
         printfn "Making concrete for %A" serializationTyp
-        let concreteCacheTyp = createConcreteFormatterCacheType cacheGenericTyp formatterObj
-        printfn "Made concrete: %A" concreteCacheTyp
+        let concreteCacheTyp =
+            createConcreteFormatterCacheType
+                cacheGenericTb
+                formatterObj
+                serializationTyp
+                instanceFi
+        // let formatterTyp = formatterObj.GetType().GetConstructor(Type.EmptyTypes)
+        // let concreteCacheTyp = createConcrete cacheGenericTyp serializationTyp formatterTyp
+        printfn "Made concrete: %A on module: %A" concreteCacheTyp (concreteCacheTyp.GetType().Module)
 
     // build resolver
     // let generatedResolver = FSharpGeneratedResolver(dict formatters)
@@ -221,8 +271,7 @@ let main argv =
 
 
     // let generatedResolverType =
-    //     let tb =
-    //         outAssembly.ModuleBuilder.DefineType(
+    //     let tb = //         outAssembly.ModuleBuilder.DefineType(
     //             "FSharpGeneratedResolver",
     //             TypeAttributes.Class ||| TypeAttributes.Public,
     //             typeof<FSharpGeneratedResolver>)
