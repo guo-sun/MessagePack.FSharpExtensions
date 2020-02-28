@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tests\MessagePack.FSharpExtensions.Tests\MessagePack.FSharpExtensions.Tests.fsproj">
+      <Name>MessagePack.FSharpExtensions.Tests.fsproj</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\MessagePack.FSharpExtensions\MessagePack.FSharpExtensions.csproj">
+      <Name>MessagePack.FSharpExtensions.csproj</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\MessagePack-CSharp\src\MessagePack\MessagePack.csproj">
+      <Name>MessagePack.csproj</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GenerateResolver.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="2.1.90" />
+    <PackageReference Include="MessagePackAnalyzer" Version="2.1.90" />
+    <PackageReference Include="MessagePack.Annotations" Version="2.1.90" />
+  </ItemGroup>
+</Project>

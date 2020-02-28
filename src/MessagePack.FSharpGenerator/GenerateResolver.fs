@@ -7,6 +7,12 @@ open System.Collections.Generic
 
 open MessagePack
 
+[<AutoOpen>]
+module Constants =
+    let DictionaryType =
+        typeof<Dictionary<_,_>>.GetGenericTypeDefinition().MakeGenericType ([|typeof<Type>; typeof<Object>|])
+
+
 module TypeReference =
     type LookForThisType() =
         static member aDictionary = dict [
@@ -26,7 +32,6 @@ module TypeReference =
                 | true, formatter -> formatter :?> Formatters.IMessagePackFormatter<'T>
                 | _ -> null
 
-
 module GenerateResolver =
     module GenerateType =
         type ResolverParts = {
@@ -34,7 +39,8 @@ module GenerateResolver =
             instanceFb : FieldBuilder
             typeFormatterDictFb : FieldBuilder
             getFormatterMb : MethodBuilder
-            serializationT'pb : GenericTypeParameterBuilder
+            serializationTpb : GenericTypeParameterBuilder
+            formatterTyp : Type
         }
 
         let createResolverTyp
@@ -44,7 +50,8 @@ module GenerateResolver =
                 moduleBuilder.DefineType (
                     "FSharpGeneratedResolver",
                     TypeAttributes.Public ||| TypeAttributes.Class,
-                    typeof<IFormatterResolver>
+                    typeof<Object>,
+                    [|typeof<IFormatterResolver>|]
                 )
 
             let instanceFb =
@@ -57,38 +64,57 @@ module GenerateResolver =
             let typeFormatterDictFb =
                 tb.DefineField (
                     "formatterCache",
-                    typeof<IDictionary<Type, Object>>,
+                    DictionaryType,
                     FieldAttributes.Public ||| FieldAttributes.Static
                 )
 
             let getFormatterMb =
                 tb.DefineMethod(
                     "GetFormatter",
-                    MethodAttributes.Public
-                )
+                    MethodAttributes.Public ||| MethodAttributes.Virtual)
 
-            let genericSerializationType'T =
-                let genericParameters = getFormatterMb.DefineGenericParameters ([|"'T"|])
+            let getFormatterInterfaceMi =
+                typeof<IFormatterResolver>.GetMethod("GetFormatter")
+
+            let genericSerializationType =
+                let genericParameters =
+                    getFormatterMb.DefineGenericParameters ([|"T"|])
+
                 genericParameters.[0]
+
+            let getFormatterReturnTyp = 
+                typeof<Formatters.IMessagePackFormatter<_>>
+                    .GetGenericTypeDefinition()
+                    .MakeGenericType(genericSerializationType)
+
+            getFormatterMb.SetReturnType(getFormatterReturnTyp)
+
+            tb.DefineMethodOverride(getFormatterMb, getFormatterInterfaceMi)
 
             {
                 tb = tb
                 instanceFb = instanceFb
                 typeFormatterDictFb = typeFormatterDictFb
                 getFormatterMb = getFormatterMb
-                serializationT'pb = genericSerializationType'T
+                serializationTpb = genericSerializationType
+                formatterTyp = getFormatterReturnTyp
             }
 
     module GenerateIL =
+        let instanceConstructor
+            (tb: TypeBuilder)
+            =
+            tb.DefineDefaultConstructor (MethodAttributes.Public)
+
         let staticConstructor
             (tb: TypeBuilder)
             (instanceFb: FieldBuilder)
             (typeFormatterDictFb: FieldBuilder)
+            (ctor: ConstructorBuilder)
             =
-            let ctor = tb.GetConstructor(Type.EmptyTypes)
             let cctor = tb.DefineTypeInitializer()
             let il = cctor.GetILGenerator()
-            let dictCtor = (typeof<Dictionary<Type, Object>>).GetConstructor(Type.EmptyTypes)
+            let dictCtor = (DictionaryType).GetConstructor(Type.EmptyTypes)
 
             // create instance, set on static field
             il.Emit(OpCodes.Newobj, ctor)
@@ -97,7 +123,8 @@ module GenerateResolver =
             // create dictionary, set on static field
             il.Emit(OpCodes.Newobj, dictCtor)
             il.Emit(OpCodes.Stsfld, typeFormatterDictFb)
-            cctor
+
+            cctor, il
 
         let dictionaryAdd
             (il: ILGenerator)
@@ -105,8 +132,11 @@ module GenerateResolver =
             (keyTyp: Type, formatterObject : Object)
             =
             let dictionaryAddMethod =
-                let typ = typeof<IDictionary<Type, Object>>
-                typ.GetRuntimeMethod("Add", [|typeof<Type>; typeof<Object>|])
+                DictionaryType
+                    .GetMethod("Add", [|
+                        typeof<Type>
+                        typeof<Object>
+                    |])
 
             let formatterCtor =
                 formatterObject.GetType().GetConstructor(Type.EmptyTypes)
@@ -116,51 +146,41 @@ module GenerateResolver =
 
             // load key metadata token
             il.Emit(OpCodes.Ldtoken, keyTyp)
+
+            let m = formatterCtor.Module
+
             // create formatter object
             il.Emit(OpCodes.Newobj, formatterCtor)
 
             // call Dictionary.Add mi
-            il.Emit(OpCodes.Call, dictionaryAddMethod)
+            il.Emit(OpCodes.Callvirt, dictionaryAddMethod)
 
         let getFormatterGeneric
             (tb: TypeBuilder)
+            (getFormatterMb: MethodBuilder)
+            (serializationTpb: GenericTypeParameterBuilder)
+            (formatterTyp: Type)
             (typeFormatterDictFb: FieldBuilder)
             =
             let tryGetValue =
-                typeof<Dictionary<Type, Object>>
+                DictionaryType
                     .GetMethod("TryGetValue", [|
                         typeof<Type>
                         typeof<Object>.MakeByRefType()
                     |])
 
-            let getFormatterMb =
-                tb.DefineMethod (
-                    "GetFormatter",
-                    MethodAttributes.Public ||| MethodAttributes.Static
-                )
+            printfn "TryGet is in module %A" tryGetValue.Module
 
-            let serializationTypeParam =
-                let genericParams =
-                    getFormatterMb.DefineGenericParameters([|"'T"|])
-
-                genericParams.[0]
-
-            getFormatterMb.SetParameters serializationTypeParam
-
-            let getFormatterReturnTyp = 
-                typeof<Formatters.IMessagePackFormatter>.MakeGenericType(serializationTypeParam)
-
-            getFormatterMb.SetReturnType getFormatterReturnTyp
 
             let il = getFormatterMb.GetILGenerator()
 
-            let tryGetOutFormatter = il.DeclareLocal typeof<Object>
+            let tryGetOutFormatter = il.DeclareLocal(typeof<Object>)
 
             // load dictionary field
             il.Emit(OpCodes.Ldsfld, typeFormatterDictFb)
 
             // get type token of type argument
-            il.Emit(OpCodes.Ldtoken, serializationTypeParam)
+            il.Emit(OpCodes.Ldtoken, serializationTpb)
 
             // load out address
             il.Emit(OpCodes.Ldloca, tryGetOutFormatter)
@@ -168,7 +188,7 @@ module GenerateResolver =
             // call Dictionary.TryGetValue
             il.Emit(OpCodes.Callvirt, tryGetValue)
 
-            let nullResult = il.DefineLabel ()
+            let nullResult = il.DefineLabel()
 
             // branch
             il.Emit(OpCodes.Brfalse, nullResult)
@@ -177,11 +197,11 @@ module GenerateResolver =
             il.Emit(OpCodes.Ldloc, tryGetOutFormatter)
 
             // cast to IMessagePackFormatter<'T>
-            il.Emit(OpCodes.Castclass, getFormatterReturnTyp)
+            il.Emit(OpCodes.Castclass, formatterTyp)
             il.Emit(OpCodes.Ret)
 
             // null result
-            il.MarkLabel nullResult
+            il.MarkLabel(nullResult)
             il.Emit(OpCodes.Ldnull)
             il.Emit(OpCodes.Ret)
 
@@ -192,21 +212,32 @@ module GenerateResolver =
         =
         let typeParts = GenerateType.createResolverTyp moduleBuilder
 
-        let cctor =
+        let ctor =
+            GenerateIL.instanceConstructor
+                typeParts.tb
+
+        let (cctor, cctorIl) =
             GenerateIL.staticConstructor
                 typeParts.tb 
                 typeParts.instanceFb
                 typeParts.typeFormatterDictFb
+                ctor
 
+        // TODO this should be moved to static GenerateIL.staticConstructor
         for formatter in formatters do
             GenerateIL.dictionaryAdd
-                (cctor.GetILGenerator())
+                cctorIl
                 typeParts.typeFormatterDictFb
                 formatter
+
+        cctorIl.Emit(OpCodes.Ret)
 
         do
             GenerateIL.getFormatterGeneric
                 typeParts.tb
+                typeParts.getFormatterMb
+                typeParts.serializationTpb
+                typeParts.formatterTyp
                 typeParts.typeFormatterDictFb
 
         typeParts.tb.CreateType()

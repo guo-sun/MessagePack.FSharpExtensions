@@ -7,6 +7,7 @@
 // call DynamicUnionResolver.GetFormatter<typ>() for each
 // grab DynamicUnionResolver.assembly
 // write it out with Assembly.save
+namespace MessagePack.FSharpGenerator
 
 open System
 open System.Collections.Generic
@@ -21,9 +22,9 @@ module AssemblerTools =
         let loaded = Assembly.LoadFrom filePath
         loaded
 
-let printall seq =
-    seq
-        |> Seq.iter (fun x -> printfn "%A" x)
+    let printall seq =
+        seq
+            |> Seq.iter (fun x -> printfn "%A" x)
 
 open MessagePack
 open MessagePack.Resolvers
@@ -90,15 +91,6 @@ module TypeGeneration =
 
         concreteCache
 
-    // Unused
-    let assignFormatterInstance
-        (formatterTyp: Type)
-        (formatterFb: FieldBuilder)
-        (il: ILGenerator)
-        =
-        let ctor = formatterTyp.GetConstructor(Type.EmptyTypes)
-        il.Emit(OpCodes.Newobj, ctor)
-        il.Emit(OpCodes.Stfld, formatterFb)
 
     let createConcrete
         (genericCache: Type)
@@ -204,104 +196,50 @@ module Predicates =
     let isInternal (typ: Type) =
         typ.IsNotPublic
 
-[<EntryPoint>]
-let main argv =
-    let resolver =
-        CompositeResolver.Create (
-            FSharpResolver.Instance,
-            StandardResolver.Instance
-        )
+module MainEntry =
+    [<EntryPoint>]
+    let main argv =
+        let resolver =
+            CompositeResolver.Create (
+                FSharpResolver.Instance,
+                StandardResolver.Instance
+            )
 
-    let getFormatterWithVerify (typ: Type) =
-        let resolverTyp = typeof<FormatterResolverExtensions>
-        let mi = resolverTyp.GetMethod("GetFormatterWithVerify", BindingFlags.Static ||| BindingFlags.Public)
-        let getFormat = mi.MakeGenericMethod(typ)
+        let getFormatterWithVerify (typ: Type) =
+            let resolverTyp = typeof<FormatterResolverExtensions>
+            let mi = resolverTyp.GetMethod("GetFormatterWithVerify", BindingFlags.Static ||| BindingFlags.Public)
+            let getFormat = mi.MakeGenericMethod(typ)
 
-        getFormat.Invoke(null, [|resolver|])
+            getFormat.Invoke(null, [|resolver|])
 
-    let testsAssembly = (typeof<MessagePack.Tests.DUTest.SimpleUnion>).Assembly
+        let testsAssembly = (typeof<MessagePack.Tests.DUTest.SimpleUnion>).Assembly
 
-    let formatters = seq {
-        for typ in testsAssembly.GetTypes() do
-            let skipTyp =
-                isDUNullCase typ ||
-                isNesteddInternal typ
+        let formatters = seq {
+            for typ in testsAssembly.GetTypes() do
+                let skipTyp =
+                    isDUNullCase typ ||
+                    isNesteddInternal typ
 
-            if not (skipTyp) then
-                printfn "Getting formatter for %A" typ
+                if not (skipTyp) then
+                    printfn "Getting formatter for %A" typ
 
-                let formatter = getFormatterWithVerify typ // instance
+                    let formatter = getFormatterWithVerify typ // instance
 
-                if isNull formatter then
-                    printfn "  Couldn't get formatter"
+                    if isNull formatter then
+                        printfn "  Couldn't get formatter"
+                    else
+                        printfn "  Got formatter"
+                        yield (typ, formatter)
                 else
-                    printfn "  Got formatter"
-                    yield (typ, formatter)
-            else
-                printfn "Skipping %A" typ
-    }
+                    printfn "Skipping %A" typ
+        }
 
-    let outAssembly = DiscriminatedUnionResolver.assembly
+        let outAssembly = DiscriminatedUnionResolver.assembly
 
-    let (cacheGenericTyp, cacheGenericTb, instanceFi) = createCacheGenericType outAssembly.ModuleBuilder
-    printfn "Made generic on module: %A" cacheGenericTyp.Module
+        let resolverTyp =
+            GenerateResolver.createResolverType
+                outAssembly.ModuleBuilder
+                formatters
 
-    for (serializationTyp, formatterObj) in formatters do
-        printfn "Making concrete for %A" serializationTyp
-        let concreteCacheTyp =
-            createConcreteFormatterCacheType
-                cacheGenericTb
-                formatterObj
-                serializationTyp
-                instanceFi
-        // let formatterTyp = formatterObj.GetType().GetConstructor(Type.EmptyTypes)
-        // let concreteCacheTyp = createConcrete cacheGenericTyp serializationTyp formatterTyp
-        printfn "Made concrete: %A on module: %A" concreteCacheTyp (concreteCacheTyp.GetType().Module)
-
-    // build resolver
-    // let generatedResolver = FSharpGeneratedResolver(dict formatters)
-    // need to generate a resolver type
-    // define it on a module in outAssembly
-    //
-    // okay, looks like i'd need to write the il to generate the initial dict value
-    // in any case, probably better to create static generics
-    // for each typ:
-    // formatterType = makeGenericType(typ, baseType)
-    // then just add a resolver type where GetFormatter<'T> = baseType<'T>.getFormatter
-
-
-    // let generatedResolverType =
-    //     let tb = //         outAssembly.ModuleBuilder.DefineType(
-    //             "FSharpGeneratedResolver",
-    //             TypeAttributes.Class ||| TypeAttributes.Public,
-    //             typeof<FSharpGeneratedResolver>)
-
-
-    //     let ctor = tb.DefineConstructor(
-    //         MethodAttributes.Public,
-    //         CallingConventions.Standard,
-    //         [|typeof<unit>|]
-    //     )
-
-    //     let ctorIL = ctor.GetILGenerator()
-        // construct FSharpGeneratedFormatter<'T> foreach typ
-
-        // todo call FSharpGeneratedFormatter<'T>.GetFormatter()
-
-    //     // dragons
-    //     let formatterDict = ctorIL.DeclareLocal
-
-    outAssembly.AssemblyBuilder.Save("whatever.dll")
-    0
-
-    // for domainAssembly in AppDomain.CurrentDomain.GetAssemblies() do
-    //     printfn "Assembly: %A" domainAssembly
-    //     for referencedAssembly in domainAssembly.GetReferencedAssemblies() do
-    //         printfn "- References: %A" referencedAssembly
-
-    //     for mmodule in domainAssembly.GetModules(true) do
-    //         printfn "  Module: %A -- PEKind: %A" mmodule (mmodule.GetPEKind())
-
-    //     // for typ in domainAssembly.GetExportedTypes() do
-    //     //     printfn "  Type: %A" typ
-    
+        outAssembly.AssemblyBuilder.Save "whatever.dll"
+        0
