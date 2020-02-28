@@ -142,7 +142,7 @@ module GenerateResolver =
                 formatterObject.GetType().GetConstructor(Type.EmptyTypes)
 
             // load the dictionary field
-            il.Emit(OpCodes.Ldfld, dictionaryFld)
+            il.Emit(OpCodes.Ldsfld, dictionaryFld)
 
             // load key metadata token
             il.Emit(OpCodes.Ldtoken, keyTyp)
@@ -154,6 +154,7 @@ module GenerateResolver =
 
             // call Dictionary.Add mi
             il.Emit(OpCodes.Callvirt, dictionaryAddMethod)
+
 
         let getFormatterGeneric
             (tb: TypeBuilder)
@@ -168,9 +169,6 @@ module GenerateResolver =
                         typeof<Type>
                         typeof<Object>.MakeByRefType()
                     |])
-
-            printfn "TryGet is in module %A" tryGetValue.Module
-
 
             let il = getFormatterMb.GetILGenerator()
 

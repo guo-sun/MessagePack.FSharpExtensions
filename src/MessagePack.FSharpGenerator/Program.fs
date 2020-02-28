@@ -154,12 +154,6 @@ module TypeGeneration =
 
 
 module TestFromHere =
-    // TODO
-    // define this on the dynamic assembly
-    // foreach typ (where typ is Type of the formatter)
-    // makegenerictype of this, on typ
-    // set Formatter to an instance of typ
-
     type WithFSharpDefaultResolver() =
       interface IFormatterResolver with
         member __.GetFormatter<'T>() =
@@ -196,44 +190,48 @@ module Predicates =
     let isInternal (typ: Type) =
         typ.IsNotPublic
 
-module MainEntry =
+module GenerateFormatters =
+    let resolver =
+        CompositeResolver.Create (
+            FSharpResolver.Instance,
+            StandardResolver.Instance
+        )
+
+    let getFormatterWithVerify (typ: Type) =
+        let mi =
+            typeof<FormatterResolverExtensions>
+                .GetMethod(
+                    "GetFormatterWithVerify",
+                    BindingFlags.Static ||| BindingFlags.Public)
+
+        let getFormat = mi.MakeGenericMethod(typ)
+
+        getFormat.Invoke(null, [|resolver|])
+
+    let testsAssembly = (typeof<MessagePack.Tests.DUTest.SimpleUnion>).Assembly
+
+    let formatters = seq {
+        for typ in testsAssembly.GetTypes() do
+            let skipTyp =
+                isDUNullCase typ ||
+                isNesteddInternal typ
+
+            if not (skipTyp) then
+                printfn "Getting formatter for %A" typ
+
+                let formatter = getFormatterWithVerify typ // instance
+
+                if isNull formatter then
+                    printfn "  Couldn't get formatter"
+                else
+                    printfn "  Got formatter"
+                    yield (typ, formatter)
+            else
+                printfn "Skipping %A" typ
+    }
+
     [<EntryPoint>]
     let main argv =
-        let resolver =
-            CompositeResolver.Create (
-                FSharpResolver.Instance,
-                StandardResolver.Instance
-            )
-
-        let getFormatterWithVerify (typ: Type) =
-            let resolverTyp = typeof<FormatterResolverExtensions>
-            let mi = resolverTyp.GetMethod("GetFormatterWithVerify", BindingFlags.Static ||| BindingFlags.Public)
-            let getFormat = mi.MakeGenericMethod(typ)
-
-            getFormat.Invoke(null, [|resolver|])
-
-        let testsAssembly = (typeof<MessagePack.Tests.DUTest.SimpleUnion>).Assembly
-
-        let formatters = seq {
-            for typ in testsAssembly.GetTypes() do
-                let skipTyp =
-                    isDUNullCase typ ||
-                    isNesteddInternal typ
-
-                if not (skipTyp) then
-                    printfn "Getting formatter for %A" typ
-
-                    let formatter = getFormatterWithVerify typ // instance
-
-                    if isNull formatter then
-                        printfn "  Couldn't get formatter"
-                    else
-                        printfn "  Got formatter"
-                        yield (typ, formatter)
-                else
-                    printfn "Skipping %A" typ
-        }
-
         let outAssembly = DiscriminatedUnionResolver.assembly
 
         let resolverTyp =
@@ -241,5 +239,9 @@ module MainEntry =
                 outAssembly.ModuleBuilder
                 formatters
 
-        outAssembly.AssemblyBuilder.Save "whatever.dll"
+        ignore <| DiscriminatedUnionResolver.Instance.Save()
+        ignore <| DynamicEnumResolver.Instance.Save()
+        ignore <| DynamicObjectResolver.Instance.Save()
+        ignore <| DynamicUnionResolver.Instance.Save()
+
         0
