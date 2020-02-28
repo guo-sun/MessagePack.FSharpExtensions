@@ -9,8 +9,7 @@ open MessagePack
 
 [<AutoOpen>]
 module Constants =
-    let DictionaryType =
-        typeof<Dictionary<_,_>>.GetGenericTypeDefinition().MakeGenericType ([|typeof<Type>; typeof<Object>|])
+    let DictionaryType = typeof<Dictionary<Type, Object>>
 
 
 module TypeReference =
