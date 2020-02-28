@@ -14,23 +14,15 @@ module Constants =
 
 
 module TypeReference =
-    type LookForThisType() =
-        static member aDictionary = dict [
-            "a", 0
-            "b", 1
-        ]
-
     type FSharpGeneratedResolver() =
         static member Instance = FSharpGeneratedResolver()
         static member formatterCache : IDictionary<Type, Object> = dict []
         interface IFormatterResolver with
             member x.GetFormatter<'T> () =
-                // let formatter = FSharpGeneratedFormatter<'T>.Formatter
-                // FIXME how to build concrete type instance? or just create an instance of the generic? how to reference that instance?
-
                 match FSharpGeneratedResolver.formatterCache.TryGetValue typeof<'T> with
                 | true, formatter -> formatter :?> Formatters.IMessagePackFormatter<'T>
                 | _ -> null
+
 
 module GenerateResolver =
     module GenerateType =
@@ -147,12 +139,10 @@ module GenerateResolver =
             // load key metadata token
             il.Emit(OpCodes.Ldtoken, keyTyp)
 
-            let m = formatterCtor.Module
-
             // create formatter object
             il.Emit(OpCodes.Newobj, formatterCtor)
 
-            // call Dictionary.Add mi
+            // call Dictionary.Add
             il.Emit(OpCodes.Callvirt, dictionaryAddMethod)
 
 
