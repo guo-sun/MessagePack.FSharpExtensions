@@ -32,19 +32,19 @@ using MessagePack.FSharp.Internal;
 
 namespace MessagePack.FSharp
 {
-    public sealed class DynamicUnionResolver : IFormatterResolver
+    public sealed class DiscriminatedUnionResolver : IFormatterResolver
     {
-        public static readonly DynamicUnionResolver Instance = new DynamicUnionResolver();
+        public static readonly DiscriminatedUnionResolver Instance = new DiscriminatedUnionResolver();
 
-        const string ModuleName = "MessagePack.FSharp.DynamicUnionResolver";
+        const string ModuleName = "MessagePack.FSharp.DiscriminatedUnionResolver";
 
-        static readonly DynamicAssembly assembly;
+        public static readonly DynamicAssembly assembly;
 
         static int nameSequence = 0;
 
-        DynamicUnionResolver() { }
+        DiscriminatedUnionResolver() { }
 
-        static DynamicUnionResolver()
+        static DiscriminatedUnionResolver()
         {
             assembly = new DynamicAssembly(ModuleName);
         }
@@ -53,6 +53,12 @@ namespace MessagePack.FSharp
         {
             return FormatterCache<T>.formatter;
         }
+
+        #if NETFRAMEWORK
+        public void Save() {
+            assembly.Save();
+        }
+        #endif
 
         static class FormatterCache<T>
         {

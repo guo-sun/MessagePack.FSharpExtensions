@@ -23,19 +23,41 @@ using System.Reflection.Emit;
 
 namespace MessagePack.FSharp.Internal
 {
-    internal class DynamicAssembly
+    public class DynamicAssembly
     {
         readonly AssemblyBuilder assemblyBuilder;
         readonly ModuleBuilder moduleBuilder;
 
         public ModuleBuilder ModuleBuilder { get { return moduleBuilder; } }
 
-        public DynamicAssembly(string moduleName)
+        public AssemblyBuilder AssemblyBuilder { get { return assemblyBuilder; } }
+
+        #if NETFRAMEWORK
+        string moduleName;
+        public void Save() {
+            assemblyBuilder.Save(moduleName + ".dll");
+        }
+        #endif
+
+        public DynamicAssembly(string moduleName) // TODO filename only for net48
         {
 
-            this.assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName(moduleName), AssemblyBuilderAccess.Run);
+            #if NETFRAMEWORK
+            this.moduleName = moduleName;
+            AssemblyBuilderAccess assemblyAccess = AssemblyBuilderAccess.RunAndSave;
+            #else
+            AssemblyBuilderAccess assemblyAccess = AssemblyBuilderAccess.Run;
+            #endif
 
+            this.assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
+                new AssemblyName(moduleName), assemblyAccess
+            );
+
+            #if NETFRAMEWORK
+            this.moduleBuilder = assemblyBuilder.DefineDynamicModule(moduleName, moduleName + ".dll");
+            #else
             this.moduleBuilder = assemblyBuilder.DefineDynamicModule(moduleName);
+            #endif
         }
     }
 }

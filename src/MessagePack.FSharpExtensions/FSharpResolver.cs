@@ -30,7 +30,7 @@ namespace MessagePack.FSharp
 
                 if (formatter == null)
                 {
-                    var f = DynamicUnionResolver.Instance.GetFormatter<T>();
+                    var f = DiscriminatedUnionResolver.Instance.GetFormatter<T>();
                     if (f != null)
                     {
                         formatter = f;
