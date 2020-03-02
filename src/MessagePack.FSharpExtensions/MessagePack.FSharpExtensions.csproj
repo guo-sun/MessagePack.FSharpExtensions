@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Version>1.4.1</Version>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net48;netstandard2.0</TargetFrameworks>
     <Authors>pocketberserker</Authors>
     <Owners>pocketberserker</Owners>
     <PackageProjectUrl>https://github.com/pocketberserker/MessagePack.FSharpExtensions</PackageProjectUrl>
@@ -12,7 +12,12 @@
     <DefineConstants>$(DefineConstants);NETSTANDARD</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\MessagePack-CSharp\src\MessagePack\MessagePack.csproj">
+      <Name>MessagePack.csproj</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="4.5.2" />
-    <PackageReference Include="MessagePack" Version="2.1.90" />
+    <Reference Include="System.Reflection.Emit.ILGeneration" />
   </ItemGroup>
 </Project>
