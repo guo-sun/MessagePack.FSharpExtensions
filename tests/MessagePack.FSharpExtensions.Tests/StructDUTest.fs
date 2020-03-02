@@ -1,7 +1,7 @@
 module MessagePack.Tests.StructDUTest
 
 open System
-open NUnit.Framework
+open Xunit
 open MessagePack
 
 [<Struct; MessagePackObject>]
@@ -10,31 +10,31 @@ type StructUnion =
   | F of Prop1 : int
   | G of Prop2 : int64 * Prop3: float32
 
-[<Test>]
+[<Fact>]
 let ``struct `` () =
 
   let input = E
   let actual = convert input
-  Assert.AreEqual(input, actual)
+  Assert.Equal(input, actual)
 
   let input = F 100
   let actual = convert input
-  Assert.AreEqual(input, actual)
+  Assert.Equal(input, actual)
 
   let input = G(99999999L, -123.43f)
   let actual = convert input
-  Assert.AreEqual(input, actual)
+  Assert.Equal(input, actual)
 
-[<Test>]
+[<Fact>]
 let ``builtin(string key)`` () =
 
   let input: Result<int, string> = Ok 1
   let actual = convert input
-  Assert.AreEqual(input, actual)
+  Assert.Equal(input, actual)
 
   let input: Result<int, string> = Error "error"
   let actual = convert input
-  Assert.AreEqual(input, actual)
+  Assert.Equal(input, actual)
 
 let mutable beforeStructCallback = false
 let mutable afterStructCallback = false
@@ -49,7 +49,7 @@ with
     override this.OnAfterDeserialize() =
       afterStructCallback <- true
 
-[<Test>]
+[<Fact>]
 let ``receive callback struct union`` () =
   let input = StructCall
   let actual = convert input
@@ -94,7 +94,7 @@ module Compatibility =
 
     interface CsStructUnion
 
-  [<Test>]
+  [<Fact>]
   let ``struct `` () =
 
     let input = E
@@ -104,14 +104,14 @@ module Compatibility =
     let input = F 100
     match convert<StructUnion, CsStructUnion> input |> box with
     | :? CsF as actual ->
-      Assert.AreEqual(100, actual.Item)
+      Assert.Equal(100, actual.Item)
     | actual -> Assert.True(false, sprintf "expected: CsF, but was: %A" actual)
 
     let input = G(99999999L, -123.43f)
     match convert<StructUnion, CsStructUnion> input |> box with
     | :? CsG as actual ->
-      Assert.AreEqual(99999999L, actual.Item1)
-      Assert.AreEqual(-123.43f, actual.Item2)
+      Assert.Equal(99999999L, actual.Item1)
+      Assert.Equal(-123.43f, actual.Item2)
     | actual -> Assert.True(false, sprintf "expected: CsG, but was: %A" actual)
 
   [<Union(0, typeof<CsOk>)>]
@@ -130,17 +130,17 @@ module Compatibility =
 
     interface CsResult<int, string>
 
-  [<Test>]
+  [<Fact>]
   let ``builtin(string key)`` () =
 
     let input: Result<int, string> = Ok 1
     match convert<Result<int, string>, CsResult<int, string>> input |> box with
     | :? CsOk as actual ->
-      Assert.AreEqual(1, actual.ResultValue)
+      Assert.Equal(1, actual.ResultValue)
     | actual -> Assert.True(false, sprintf "expected: CsOk, but was: %A" actual)
 
     let input: Result<int, string> = Error "error"
     match convert<Result<int, string>, CsResult<int, string>> input |> box with
     | :? CsError as actual ->
-      Assert.AreEqual("error", actual.ErrorValue)
+      Assert.Equal("error", actual.ErrorValue)
     | actual -> Assert.True(false, sprintf "expected: CsError, but was: %A" actual)

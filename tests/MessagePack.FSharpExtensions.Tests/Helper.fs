@@ -6,6 +6,8 @@ open MessagePack
 open MessagePack.Resolvers
 open MessagePack.FSharp
 
+open Xunit
+
 type WithFSharpDefaultResolver() =
   interface IFormatterResolver with
     member __.GetFormatter<'T>() =
@@ -16,12 +18,9 @@ type WithFSharpDefaultResolver() =
 let convert<'T> (value: 'T) =
   let resolver = WithFSharpDefaultResolver() :> IFormatterResolver
   let options = MessagePackSerializerOptions.Standard.WithResolver(resolver)
-  
-  printfn "Building binary"
   let bin = ReadOnlyMemory(MessagePackSerializer.Serialize(value, options))
-
   MessagePackSerializer.Deserialize<'T>(bin, options)
 
 let roundTrip x =
     let actual = convert x
-    Assert.Equal(actual, x, "roundtrip")
+    Assert.Equal(actual, x)
