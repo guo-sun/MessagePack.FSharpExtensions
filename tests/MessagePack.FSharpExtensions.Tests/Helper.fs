@@ -17,6 +17,11 @@ let convert<'T> (value: 'T) =
   let resolver = WithFSharpDefaultResolver() :> IFormatterResolver
   let options = MessagePackSerializerOptions.Standard.WithResolver(resolver)
   
+  printfn "Building binary"
   let bin = ReadOnlyMemory(MessagePackSerializer.Serialize(value, options))
 
   MessagePackSerializer.Deserialize<'T>(bin, options)
+
+let roundTrip x =
+    let actual = convert x
+    Assert.Equal(actual, x, "roundtrip")

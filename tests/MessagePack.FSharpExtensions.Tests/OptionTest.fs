@@ -1,17 +1,17 @@
 module MessagePack.Tests.OptionTest
 
-open Xunit
+open NUnit.Framework
 
-[<Fact>]
+[<Test>]
 let some () =
 
   let input = Some 1
   let actual = convert input
-  Assert.Equal(input, actual)
+  Assert.AreEqual(input, actual)
 
-[<Fact>]
+[<Test>]
 let none () =
 
   let input: int option = None
   let actual = convert input
-  Assert.Equal(input, actual)
+  Assert.AreEqual(input, actual)

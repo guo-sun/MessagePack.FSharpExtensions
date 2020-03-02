@@ -1,6 +1,6 @@
 module MessagePack.Tests.RecordTest
 
-open Xunit
+open NUnit.Framework
 open MessagePack
 
 [<MessagePackObject>]
@@ -13,12 +13,12 @@ type SimpleRecord = {
   Property3: float32
 }
 
-[<Fact>]
+[<Test>]
 let ``simple record`` () =
 
   let input = { Property1 = 100; Property2 = 99999999L; Property3 = -123.43f }
   let actual = convert input
-  Assert.Equal(input, actual)
+  Assert.AreEqual(input, actual)
 
 [<MessagePackObject(true)>]
 type SimpleStringKeyRecord = {
@@ -27,12 +27,12 @@ type SimpleStringKeyRecord = {
   Prop3: float32
 }
 
-[<Fact>]
+[<Test>]
 let ``string key`` () =
 
   let input = { Prop1 = 100; Prop2 = 99999999L; Prop3 = -123.43f }
   let actual = convert input
-  Assert.Equal(input, actual)
+  Assert.AreEqual(input, actual)
 
 [<Struct; MessagePackObject>]
 type StructRecord = {
@@ -42,9 +42,9 @@ type StructRecord = {
   Y: int
 }
 
-[<Fact>]
+[<Test>]
 let ``struct record`` () =
 
   let input = { X = 1; Y = 2 }
   let actual = convert input
-  Assert.Equal(input, actual)
+  Assert.AreEqual(input, actual)

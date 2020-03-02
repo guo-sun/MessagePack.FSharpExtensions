@@ -1,10 +1,10 @@
 module MessagePack.Tests.UnitTest
 
-open Xunit
+open NUnit.Framework
 
-[<Fact>]
+[<Test>]
 let ``unit value`` () =
 
   let input = ()
   let actual = convert input
-  Assert.Equal(input, actual)
+  Assert.AreEqual(input, actual)

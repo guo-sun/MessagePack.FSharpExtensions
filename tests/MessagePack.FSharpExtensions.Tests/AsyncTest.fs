@@ -1,11 +1,11 @@
 module MessagePack.Tests.AsyncTest
 
-open Xunit
+open NUnit.Framework
 
-[<Fact>]
+[<Test>]
 let ``async value`` () =
 
   let input = async.Return(1)
   let actual = convert input
-  Assert.Equal(1, Async.RunSynchronously actual)
+  Assert.AreEqual(1, Async.RunSynchronously actual)
   

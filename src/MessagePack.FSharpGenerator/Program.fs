@@ -1,11 +1,7 @@
 ﻿namespace MessagePack.FSharpGenerator
 
 open System
-open System.Collections.Generic
 open System.Reflection
-open System.Reflection.Emit
-
-open Microsoft.FSharp.Reflection
 
 open MessagePack
 open MessagePack.Resolvers
@@ -74,6 +70,8 @@ module GenerateFormatters =
     let main argv =
         let outAssembly = DiscriminatedUnionResolver.assembly
 
+        // TODO Should reorganize these somehow --
+        // FSharpGeneratedResolver should probably be on its on module/assembly
         let resolverTyp =
             GenerateResolver.createResolverType
                 outAssembly.ModuleBuilder

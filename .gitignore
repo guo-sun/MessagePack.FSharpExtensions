@@ -201,3 +201,4 @@ temp/
 ILSpy*
 *.ionide*
 *.vscode*
+*.dll
