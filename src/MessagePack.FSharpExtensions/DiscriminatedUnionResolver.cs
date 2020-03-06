@@ -315,19 +315,20 @@ namespace MessagePack.FSharp
                     il.Emit(OpCodes.Call, ReadOnlySpanFromByteArray);
 
                     // Optimize, WriteRaw(Unity, large) or UnsafeMemory32/64.WriteRawX
-                    var valueLen = MessagePack.Internal.CodeGenHelpers.GetEncodedStringBytes(item.StringKey).Length;
-                    if (valueLen <= MessagePackRange.MaxFixStringLength)
-                    {
-                        if (UnsafeMemory.Is32Bit)
-                        {
-                            il.EmitCall(typeof(UnsafeMemory32).GetRuntimeMethod("WriteRaw" + valueLen, new[] { typeof(MessagePackWriter).MakeByRefType(), typeof(ReadOnlySpan<byte>) }));
-                        }
-                        else
-                        {
-                            il.EmitCall(typeof(UnsafeMemory64).GetRuntimeMethod("WriteRaw" + valueLen, new[] { typeof(MessagePackWriter).MakeByRefType(), typeof(ReadOnlySpan<byte>) }));
-                        }
-                    }
-                    else
+                    // TODO use directive - this breaks il2cpp
+                    // var valueLen = MessagePack.Internal.CodeGenHelpers.GetEncodedStringBytes(item.StringKey).Length;
+                    // if (valueLen <= MessagePackRange.MaxFixStringLength)
+                    // {
+                    //     if (UnsafeMemory.Is32Bit)
+                    //     {
+                    //         il.EmitCall(typeof(UnsafeMemory32).GetRuntimeMethod("WriteRaw" + valueLen, new[] { typeof(MessagePackWriter).MakeByRefType(), typeof(ReadOnlySpan<byte>) }));
+                    //     }
+                    //     else
+                    //     {
+                    //         il.EmitCall(typeof(UnsafeMemory64).GetRuntimeMethod("WriteRaw" + valueLen, new[] { typeof(MessagePackWriter).MakeByRefType(), typeof(ReadOnlySpan<byte>) }));
+                    //     }
+                    // }
+                    // else
                     {
                         il.EmitCall(MessagePackWriterTypeInfo.WriteRaw);
                     }
@@ -605,11 +606,6 @@ namespace MessagePack.FSharp
 
                     il.MarkLabel(loopEnd);
                 });
-
-                // end fixed
-                il.Emit(OpCodes.Ldc_I4_0);
-                il.Emit(OpCodes.Conv_U);
-                il.EmitStloc(buffer);
             }
             else
             {
@@ -703,8 +699,7 @@ namespace MessagePack.FSharp
             {
                 il.Emit(OpCodes.Ldloc, structLocal);
             }
-
-            il.Emit(OpCodes.Ret);
+            // il.Emit(OpCodes.Ret);
         }
 
         static void EmitDeserializeValue(ILGenerator il, DeserializeInfo info, Action emitLoadReader, Action emitLoadOptions, LocalBuilder localResolver)
@@ -910,7 +905,8 @@ namespace MessagePack.FSharp.Internal
                     {
                         PropertyInfo = item,
                         StringKey = item.Name,
-                        IntKey = hiddenIntKey++
+                        IntKey = hiddenIntKey++,
+                        ParentType = type
                     };
                     stringMembers.Add(member.StringKey, member);
                 }
@@ -924,7 +920,8 @@ namespace MessagePack.FSharp.Internal
                     var member = new EmittableMember
                     {
                         PropertyInfo = item,
-                        IntKey = hiddenIntKey++
+                        IntKey = hiddenIntKey++,
+                        ParentType = type
                     };
                     intMembers.Add(member.IntKey, member);
                 }
@@ -1008,6 +1005,7 @@ namespace MessagePack.FSharp.Internal
 
         public class EmittableMember
         {
+            public Type ParentType { get; set; }
             public int IntKey { get; set; }
             public string StringKey { get; set; }
             public Type Type { get { return PropertyInfo.PropertyType; } }
@@ -1022,7 +1020,9 @@ namespace MessagePack.FSharp.Internal
 
             public void EmitLoadValue(ILGenerator il)
             {
-                il.EmitCall(PropertyInfo.GetGetMethod());
+                var getMethod = PropertyInfo.GetGetMethod();
+                il.Emit(OpCodes.Castclass, getMethod.DeclaringType);
+                il.EmitCall(getMethod);
             }
         }
     }
